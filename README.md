@@ -10,7 +10,7 @@ The method separates project-memory stewardship into two complementary stages:
 
 1. Deterministic scanning
 
-   Scripts collect verifiable facts first, such as `agent.md` line counts, `.agent/` detail pages, `AGENTS.md`, `README.md`, usage markers, and recent session-record locations. This gives the LLM stable input instead of relying on memory or impression.
+   Scripts collect verifiable facts first, such as project-root `agent.md` line counts, project-local `.agent/` detail pages, `AGENTS.md`, `README.md`, usage markers, and recent session-record locations. This gives the LLM stable input instead of relying on memory or impression.
 
 2. Semantic judgment and compression
 
@@ -18,7 +18,7 @@ The method separates project-memory stewardship into two complementary stages:
 
 3. Progressive disclosure
 
-   The root `agent.md` stays short and navigation-focused. Detailed operational knowledge lives in `.agent/*.md`, so future agents can read the most important constraints first and expand into details only when needed.
+   The project-root `agent.md` stays short and navigation-focused. Detailed operational knowledge lives in project-local `.agent/*.md`, so future agents can read the most important constraints first and expand into details only when needed.
 
 4. Usage-feedback markers
 
@@ -32,6 +32,10 @@ The method separates project-memory stewardship into two complementary stages:
 - Layered memory structure: a short root file points to hidden detail pages for deeper project knowledge.
 - Usage-marker mechanism: frequency and recency become practical signals for memory compression.
 - Portable skill package: the approach is not tied to one project and can be reused across Codex repositories.
+
+## Memory Location
+
+Place `agent.md` in the target project's root folder. Place detailed memory pages under that same project's `.agent/` directory. Do not store project memory under `~/.codex`; that directory is only scanned for Codex session records.
 
 ## Method Directory Structure
 
