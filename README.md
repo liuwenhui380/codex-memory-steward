@@ -1,62 +1,62 @@
 # Codex Memory Steward
 
-Codex Memory Steward 是一个面向长期 Codex 项目的记忆管理方法与技能包，用来把会话中真正稳定、可复用的经验整理成结构化项目记忆。
+Codex Memory Steward is a memory-management method and reusable Codex skill for long-running Codex projects. It turns stable, reusable lessons from development sessions into structured project memory.
 
-它关注的问题不是简单保存聊天记录，而是在多轮开发、长上下文压缩和跨会话协作中，保留那些会影响未来决策的项目知识。
+The goal is not to save chat history. The goal is to preserve project knowledge that can shape future decisions across multi-step development, context compression, and cross-session collaboration.
 
-## 大致原理
+## Core Principle
 
-该方法把项目记忆维护拆成两个互补环节：
+The method separates project-memory stewardship into two complementary stages:
 
-1. 确定性扫描
+1. Deterministic scanning
 
-   脚本先收集可验证事实，例如 `agent.md` 行数、`.agent/` 详情页、`AGENTS.md`、`README.md`、usage marker 和近期会话记录位置。这一步负责提供稳定输入，避免模型凭印象维护记忆。
+   Scripts collect verifiable facts first, such as `agent.md` line counts, `.agent/` detail pages, `AGENTS.md`, `README.md`, usage markers, and recent session-record locations. This gives the LLM stable input instead of relying on memory or impression.
 
-2. 语义判断与压缩
+2. Semantic judgment and compression
 
-   LLM 再根据扫描结果判断哪些内容属于长期经验，哪些只是一次性调试噪声。稳定经验会被压缩成短句，放入根记忆或详细记忆页中。
+   The LLM reviews the scan output and decides which findings are durable lessons and which are one-off debugging noise. Stable lessons are compressed into concise entries and placed in the root memory file or detailed memory pages.
 
-3. 渐进式披露
+3. Progressive disclosure
 
-   根目录的 `agent.md` 保持短小，只保存导航级提醒；细节放入 `.agent/*.md`。这样未来代理可以先读到核心约束，再按需展开细节。
+   The root `agent.md` stays short and navigation-focused. Detailed operational knowledge lives in `.agent/*.md`, so future agents can read the most important constraints first and expand into details only when needed.
 
-4. 使用痕迹反馈
+4. Usage-feedback markers
 
-   usage marker 用 `count`、`since`、`last` 记录某条记忆的使用情况。高频或近期使用的记忆优先保留，低频内容则可以在人工复核后压缩或下沉。
+   Usage markers record `count`, `since`, and `last` metadata for memory entries. Frequently or recently used memories are preserved first, while low-use entries can be compressed or demoted after review.
 
-## 创新点
+## Key Features
 
-- 脚本与 LLM 分工：脚本负责事实收集，LLM 负责语义筛选和表达压缩。
-- 面向上下文压缩：在长会话压缩前主动固化稳定经验，减少信息断层。
-- 低噪声记忆：强调保存会改变未来行为的规则，而不是保存完整会话历史。
-- 分层记忆结构：用短根文件加隐藏详情页的方式，兼顾可读性和信息容量。
-- usage marker 机制：把记忆的使用频率和最近使用时间纳入压缩依据。
-- 可迁移技能包：核心方法不绑定某个具体项目，可复制到不同 Codex 仓库中使用。
+- Script and LLM division of labor: scripts collect facts, while the LLM handles semantic filtering and concise rewriting.
+- Compression-aware workflow: stable lessons are captured before long-session context compression.
+- Low-noise memory: the method favors rules that change future behavior instead of storing complete session history.
+- Layered memory structure: a short root file points to hidden detail pages for deeper project knowledge.
+- Usage-marker mechanism: frequency and recency become practical signals for memory compression.
+- Portable skill package: the approach is not tied to one project and can be reused across Codex repositories.
 
-## 方法目录结构
+## Method Directory Structure
 
 ```text
 .
 |-- SKILL.md
-|   `-- Codex 技能入口，定义何时使用该记忆管理方法以及核心操作流程。
+|   `-- Codex skill entry point defining when to use the memory-stewardship method and its core workflow.
 |
 |-- agents/
 |   `-- openai.yaml
-|       `-- 技能展示元数据，包括显示名称、简短说明和默认调用提示。
+|       `-- Skill display metadata, including display name, short description, and default prompt.
 |
 |-- references/
 |   |-- workflow.md
-|   |   `-- 渐进式记忆维护流程，说明根记忆、详情页和压缩检查点的职责。
+|   |   `-- Progressive memory workflow guidance for root memory, detail pages, and compression checkpoints.
 |   |
 |   `-- llm_tradeoffs.md
-|       `-- LLM 与脚本的分工原则，列出适合模型判断和不适合模型承担的任务。
+|       `-- Division-of-labor guidance for what scripts should handle and what the LLM should judge.
 |
 `-- scripts/
     `-- run_memory_steward.ps1
-        `-- PowerShell 扫描脚本，用于生成项目记忆状态报告和 usage marker 摘要。
+        `-- PowerShell scanner that generates a project-memory status report and usage-marker summary.
 ```
 
-## 方法流程
+## Method Flow
 
 ```text
 Scan project memory
