@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Memory Steward"
+  short_description: "Steward progressive Codex memory docs"
+  default_prompt: "Use $codex-memory-steward to update project memory before compressing a long session."
