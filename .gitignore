@@ -1,0 +1,6 @@
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+codex_memory_maintenance_logs/
+codex_memory_steward_logs/
