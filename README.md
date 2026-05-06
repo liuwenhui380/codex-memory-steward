@@ -33,22 +33,6 @@ Usage statistics should be displayed in one Markdown layer per memory root. The 
 
 The workflow intentionally separates deterministic collection from semantic judgment. Scripts collect verifiable facts; the LLM decides what is worth preserving and how shallow it should live.
 
-## Quick Start
-
-From the project that needs memory stewardship:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File path\to\codex-memory-steward\scripts\run_memory_steward.ps1 -RepoRoot . -Apply
-```
-
-To produce a report without modifying the target project:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File path\to\codex-memory-steward\scripts\run_memory_steward.ps1 -RepoRoot .
-```
-
-The report is written to a desktop `codex_memory_steward_logs` folder by default.
-
 ## Repository Layout
 
 ```text

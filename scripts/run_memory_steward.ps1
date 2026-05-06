@@ -1,6 +1,6 @@
 param(
     [string]$RepoRoot = (Get-Location).Path,
-    [string]$ReportRoot = (Join-Path ([Environment]::GetFolderPath('Desktop')) 'codex_memory_steward_logs'),
+    [string]$ReportRoot = '',
     [string[]]$SessionRoots = @(
         (Join-Path $env:USERPROFILE '.codex\sessions'),
         (Join-Path $env:USERPROFILE '.codex\archived_sessions'),
@@ -14,6 +14,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $PSDefaultParameterValues['Set-Content:Encoding'] = 'utf8'
 $PSDefaultParameterValues['Add-Content:Encoding'] = 'utf8'
+
+if ([string]::IsNullOrWhiteSpace($ReportRoot)) {
+    $ReportRoot = Join-Path (Join-Path $RepoRoot '.agent') 'reports'
+}
 
 function Get-TextLineCount {
     param([string]$File)

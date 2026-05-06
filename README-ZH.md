@@ -33,22 +33,6 @@ Codex Memory Steward 是一个可复用的 Codex skill 和项目记忆维护流�
 
 这个流程刻意把“事实收集”和“语义判断”分开：脚本负责收集可验证事实，LLM 负责判断哪些内容值得保留、应该放在哪一层。
 
-## 快速开始
-
-在需要维护记忆的项目中运行：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File path\to\codex-memory-steward\scripts\run_memory_steward.ps1 -RepoRoot . -Apply
-```
-
-只生成报告、不修改目标项目：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File path\to\codex-memory-steward\scripts\run_memory_steward.ps1 -RepoRoot .
-```
-
-默认情况下，报告会写入桌面的 `codex_memory_steward_logs` 文件夹。
-
 ## 仓库结构
 
 ```text
