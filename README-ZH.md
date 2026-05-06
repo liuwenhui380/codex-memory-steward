@@ -1,0 +1,85 @@
+# Codex Memory Steward
+
+[English README](README.md)
+
+Codex Memory Steward 是一个可复用的 Codex skill 和项目记忆维护流程。它用于把长会话里的稳定经验、操作规则、文件地图和压缩前注意事项写入项目本地记忆，而不是把聊天记录原样堆进文档。
+
+核心原则很简单：项目记忆属于项目本身。当前目录的 `agent.md` 负责放最常用、最需要先看到的信息；更细的规则、事故复盘、文件清单和运行记录放在同级 `.agent/` 目录中，未来 agent 需要时再逐层展开。
+
+## 管理内容
+
+- `agent.md`：当前目录的本地记忆入口。
+- `.agent/*.md`：本地规则、事故、清单、压缩记录等详细页面。
+- `.agent/project_inventory.md`：由脚本生成的项目文件清单和粗略内容地图。
+- 使用标记：用 `count`、`since`、`last` 记录条目的使用频率和新旧程度。
+- 会话沉淀：从 Codex session 记录中提炼稳定经验，不保存原始私密 transcript。
+
+## 记忆模型
+
+每个带有 `agent.md` 的目录都被视为一个独立记忆根。
+
+父级 `agent.md` 通常只链接自己的 `.agent/*.md` 文件，以及直接子目录的 `agent.md`。子项目的私有细节应该留在子项目自己的 `.agent/` 中。只有多个子项目共同依赖的信息才适合提升到父级，例如共享服务器拓扑、凭据处理规则、工具策略、自动化规则或统一的使用统计约定。
+
+每个记忆根只能选择一个 Markdown 层展示人类可读的使用统计。默认做法是把 `count/since/last` 表放在 `agent.md`，并让 `.agent/index.md` 只承担导航职责。
+
+## 工作流程
+
+1. 先确认当前项目根目录；除非用户指定路径，否则使用当前工作目录。
+2. 在重写记忆前先运行确定性扫描。
+3. 让 LLM 把扫描结果分成稳定经验、一次性噪声、风险和后续事项。
+4. 用简短、项目特定的语言更新本地 `agent.md` 和 `.agent/` 页面。
+5. 保持根入口文件短小，通常控制在 200 行以内。
+6. 完成前验证使用标记、层级链接、文件清单新鲜度和密钥卫生。
+
+这个流程刻意把“事实收集”和“语义判断”分开：脚本负责收集可验证事实，LLM 负责判断哪些内容值得保留、应该放在哪一层。
+
+## 快速开始
+
+在需要维护记忆的项目中运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File path\to\codex-memory-steward\scripts\run_memory_steward.ps1 -RepoRoot . -Apply
+```
+
+只生成报告、不修改目标项目：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File path\to\codex-memory-steward\scripts\run_memory_steward.ps1 -RepoRoot .
+```
+
+默认情况下，报告会写入桌面的 `codex_memory_steward_logs` 文件夹。
+
+## 仓库结构
+
+```text
+.
+|-- SKILL.md
+|   `-- Codex skill 入口、触发条件和边界规则。
+|
+|-- agents/
+|   `-- openai.yaml
+|       `-- Codex 展示元数据和默认提示词。
+|
+|-- references/
+|   |-- workflow.md
+|   |   `-- 层级索引、统计放置和验证规则。
+|   |
+|   `-- llm_tradeoffs.md
+|       `-- 脚本与 LLM 的分工说明。
+|
+`-- scripts/
+    `-- run_memory_steward.ps1
+        `-- PowerShell 扫描器，可选地创建或更新项目记忆系统。
+```
+
+## 边界规则
+
+- 不要把项目记忆写入 `~/.codex`；那里只作为 session 记录的输入来源。
+- 不要把密钥、凭据、token 或原始私密 transcript 写入记忆文档。
+- 父级 `agent.md` 不要直接链接到子项目 `.agent/` 的私有细节，除非目标页面明确标记为多个子项目共享。
+- 同一个记忆根里，人类可读的使用统计不要同时放在 `agent.md` 和 `.agent/index.md`。
+- 在 Windows Codex 环境中，如果内置 `rg.exe` 路径被权限阻止，优先使用 PowerShell 原生命令扫描。
+
+## 使用场景
+
+当 Codex 会话产生了会影响未来工作的稳定经验、项目需要初始化 `agent.md` / `.agent/`、上下文即将压缩，或者现有记忆树需要整理层级和使用统计时，使用这个 skill。
