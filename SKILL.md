@@ -1,66 +1,104 @@
 ---
 name: codex-memory-steward
-description: Steward progressive Codex project memory systems. Use when Codex needs to create or update project-root agent.md/.agent memory docs, nested agent.md indexes, usage-count statistics, record stable lessons before context compression, summarize local Codex session records, or export this memory workflow as a reusable skill.
+description: Steward project-local Codex memory systems. Trigger only when the task explicitly involves agent.md/.agent memory hierarchy, usage markers (count/since/last), pre-compression memory curation, or migration/validation of memory-stat display layers.
 ---
 
 # Codex Memory Steward
 
-Use this skill to steward long-running Codex project memory without letting useful operational knowledge drift or sprawl. Store project memory in the active session's project folder, with a short local `agent.md` plus progressively disclosed `.agent/` reference files.
+Use this skill to steward long-running Codex project memory without letting useful operational knowledge drift or sprawl. Store memory in the active project's folder with a short local `agent.md` plus progressively disclosed `.agent/` reference files.
+
+## Trigger Signals (Use)
+
+Use this skill when one or more high-confidence signals appear:
+- The user explicitly mentions `agent.md`, `.agent/`, memory hierarchy/index, or usage markers.
+- The task asks for context-compression prep by preserving stable lessons.
+- The task asks to normalize usage-stat display between `agent.md` and `.agent/index.md`.
+- The task asks to bootstrap a project-local memory system.
+
+## Non-Trigger Signals (Do Not Use)
+
+Do not use this skill for generic documentation editing, README polishing, or unrelated repo cleanup unless memory-stewardship goals are explicit.
+
+## Decision Priority
+
+When instructions conflict, apply this order:
+1. User explicit instructions.
+2. Existing repo-local convention in that memory root.
+3. Default workflow in this skill.
 
 ## Core Rules
 
 - Every `agent.md` owns an independent local memory system for its own directory.
-- A parent `agent.md` normally indexes only its own sibling `.agent/*.md` files and immediate child directories' `agent.md` files.
-- Shared cross-project information is an explicit exception: if several child projects under one folder use the same server, credential-handling rule, deployment topology, tool policy, or usage-stat convention, write the short shared fact directly in the parent `agent.md` or put it in the parent `.agent/` and link it there.
-- Do not cross levels for project-private details: a root `agent.md` must not directly index `child/.agent/*.md`, `child/grandchild/agent.md`, or deeper memory pages unless the linked page is explicitly marked as shared across multiple children.
-- Each child `agent.md` continues the chain and indexes its own local `.agent/` details.
-- Exposure depth should follow invocation frequency:
-  - keep high-frequency entries shallow (promote stable facts into shallower pages);
-  - keep low-frequency facts deep (`.agent/`) until usage proves promotion value.
-- `.agent/*.md` files that contain many independent facts should add a light local index (目录) and invocation metadata (`count` / `since` / `last`) for each sub-point, so future edits can promote or refresh one point without full file reshaping.
-- Usage statistics must live in exactly one Markdown layer per memory system. Default to putting human-readable `count/since/last` tables in that directory's `agent.md`; keep `.agent/index.md` as navigation only.
-- Machine-readable stats files such as `.agent/stats/*.json` may exist, but the Markdown statistics display should not be split between `agent.md` and `.agent/index.md`.
+- A parent `agent.md` normally indexes only sibling `.agent/*.md` and immediate child `agent.md` files.
+- Shared cross-project information is an explicit exception; child-private details must stay in child memory roots.
+- Exposure depth follows invocation frequency:
+  - keep high-frequency facts shallow;
+  - keep low-frequency facts deep in `.agent/`.
+- `.agent/*.md` files with many independent facts should include a light local index and sub-point metadata (`count` / `since` / `last`).
+- Usage statistics must live in exactly one Markdown display layer per memory root.
+- Machine-readable stats (for example `.agent/stats/*.json`) may coexist, but human-readable stats must not be split across two Markdown layers.
 
 ## Optimized Workflow
 
-Use a two-lane process: scripts handle deterministic collection, while the LLM handles semantic judgment and rewriting.
+Use a two-lane process: scripts handle deterministic collection; the LLM handles semantic judgment and rewriting.
 
-1. Identify the active session's project folder first. Use the current working directory unless the user names another project root.
-2. Directly create or update that folder's memory system: `<project-root>/agent.md`, `<project-root>/.agent/`, and `<project-root>/.agent/project_inventory.md`.
-3. For nested workspaces, repeat locally: each nested `agent.md` gets its own `.agent/` and local stats table.
-4. Run a deterministic scan for `agent.md` files, project-local `.agent/` files, `AGENTS.md`, README files, usage markers, file inventory, and session records.
-5. Ask the LLM to triage scan output into stable lessons, one-off noise, risks, and action items.
-6. Keep each `agent.md` under 200 lines; move details into that directory's `.agent/` or another project-local hidden memory directory.
+1. Identify the active session project folder (cwd by default unless user provides another root).
+2. Create/update that folder's memory system: `<project-root>/agent.md`, `<project-root>/.agent/`, `<project-root>/.agent/project_inventory.md`.
+3. For nested workspaces, repeat locally so each nested `agent.md` has independent local stats.
+4. Run deterministic scan for `agent.md`, project-local `.agent/`, `AGENTS.md`, README files, usage markers, file inventory, and session records.
+5. Ask LLM triage: stable lessons, one-off noise, risks, action items.
+6. Keep each `agent.md` concise (target under 200 lines). If over target, split details into `.agent/` and note why.
 7. Add one usage marker near each stable entry point:
 
 ```html
 <!-- usage:agent.area.topic count=0 since=YYYY-MM-DD last=never -->
 ```
 
-8. Put the human-readable frequency table in `agent.md` unless the project explicitly standardizes on `.agent/index.md`; never mix both within one memory system.
-9. Before context compression at about four fifths of the window, update memory docs with stable new lessons, then summarize.
-10. For `.agent/*.md` pages with dense point lists, update a mini-index of sub-entries with `count/since/last` and keep that index aligned with edit order; this enables moving one hot point upward first.
-11. Validate with the bundled script or the repository's own memory checker, then re-read the diff for hallucinated or over-broad memories.
+8. Keep the human-readable frequency table in one display layer per memory root.
+9. Before context compression (around 80% context usage), update memory docs with stable lessons, then summarize.
+10. For dense `.agent/*.md` pages, maintain mini-index alignment with edit order to simplify incremental promotion.
+11. Validate with script/checker, then re-read diff for hallucinated or over-broad memory.
 
-## Validation Checklist
+## Migration SOP (Stats Display Layer)
 
-- Every relevant `agent.md` has a usage marker and a local stats/usage section.
-- Root or parent `agent.md` files do not directly link to descendant `.agent/` files or deeper `agent.md` files, except for explicitly marked shared pages used by multiple child projects.
-- If stats are standardized in `agent.md`, `.agent/index.md` files contain no `Count`, `Last`, `usage`, `有效调用`, or `调用次数` display.
-- If stats are standardized in `.agent/index.md`, `agent.md` links there and does not duplicate stats.
-- Secrets, API keys, passwords, tokens, raw transcripts, and private credentials are absent from memory docs.
-- Existing custom statistics systems are preserved unless the user asks to migrate them; normalize the Markdown display layer without deleting machine-readable stats.
+When both `agent.md` and `.agent/index.md` currently display human-readable stats:
+1. Detect duplicate display sections.
+2. Pick the target display layer (default: `agent.md` unless repo convention says otherwise).
+3. Move/merge display table to target layer.
+4. Replace non-target display with navigation link only.
+5. Preserve machine-readable stats files untouched.
+
+## Validation with Repair Actions
+
+- Check: every relevant `agent.md` has usage marker + local stats/usage section.
+  - Repair: add missing marker/section with minimal seed rows.
+- Check: parent `agent.md` has no direct child-private deep links.
+  - Repair: relink to child `agent.md` or explicitly mark shared page scope.
+- Check: human-readable stats appear in exactly one Markdown layer.
+  - Repair: keep target layer; replace other layer's table with link.
+- Check: secrets/credentials/raw private transcripts absent.
+  - Repair: redact and replace with safe operational summary.
+- Check: existing custom stats systems preserved unless user requests migration.
+  - Repair: keep machine-readable pipeline, normalize Markdown display only.
+
+## Output Contract
+
+Always produce a compact result block:
+- Changed files.
+- Stable lessons added/updated.
+- Risks and ambiguities.
+- Follow-up actions.
 
 ## Resources
 
-- Read `references/workflow.md` for detailed project-memory layout rules.
-- Read `references/llm_tradeoffs.md` before redesigning the workflow or deciding what the LLM should automate.
-- Use `scripts/run_memory_steward.ps1 -Apply` from the target project root, or pass `-RepoRoot`, so it creates/updates that project's `agent.md`, `.agent/project_inventory.md`, usage markers, and recent session report.
+- Read `references/workflow.md` for detailed layout rules.
+- Read `references/llm_tradeoffs.md` before redesigning automation boundaries.
+- Use `scripts/run_memory_steward.ps1 -Apply` from target root, or pass `-RepoRoot`.
 
 ## Boundaries
 
 - Do not store secrets, credentials, or raw private transcript dumps in memory docs.
-- Do not put `agent.md` or `.agent/` under `~/.codex`; `.codex` is only a source for Codex session/history records.
+- Do not put `agent.md` or `.agent/` under `~/.codex`.
 - Do not auto-commit, auto-push, or switch the user's main worktree.
 - Do not run interactive analysis pipelines as unattended memory stewardship.
-- Do not let the LLM directly rewrite memory from raw logs without a deterministic scan and a final diff review.
+- Do not let the LLM rewrite memory from raw logs without deterministic scan + final diff review.

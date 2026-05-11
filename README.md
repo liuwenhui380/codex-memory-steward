@@ -4,7 +4,24 @@
 
 Codex Memory Steward is a reusable Codex skill and workflow for maintaining project-local memory systems. It helps long-running Codex work preserve stable lessons, operating rules, and file maps without turning chat history into noisy documentation.
 
-The core idea is simple: project memory belongs inside the project. A short `agent.md` gives future agents the high-frequency facts first, while local `.agent/` pages hold deeper detail that can be opened only when needed.
+## When This Skill Should Trigger
+
+Use this skill when at least one high-confidence signal is present:
+- The task explicitly mentions `agent.md`, `.agent/`, memory hierarchy/index, or usage markers.
+- The task asks for pre-compression memory curation.
+- The task asks to normalize human-readable stats display between `agent.md` and `.agent/index.md`.
+- The task asks to bootstrap a local memory system.
+
+## When It Should Not Trigger
+
+Do not use this skill for generic docs editing, README polishing, or unrelated repository cleanup when memory-stewardship goals are not explicit.
+
+## Decision Priority
+
+If instructions conflict, apply this order:
+1. User explicit instruction.
+2. Existing repo-local convention in that memory root.
+3. Default policy in `SKILL.md`.
 
 ## What It Manages
 
@@ -14,24 +31,30 @@ The core idea is simple: project memory belongs inside the project. A short `age
 - Usage markers: lightweight `count`, `since`, and `last` metadata for deciding what should stay shallow.
 - Session-derived lessons: durable findings extracted from Codex session records, not raw transcript dumps.
 
-## Memory Model
+## Workflow Highlights
 
-Each directory with an `agent.md` is treated as its own memory root.
+1. Resolve the active project root (cwd by default unless user names another root).
+2. Run deterministic scanning first; let the LLM perform semantic triage.
+3. Keep `agent.md` concise (target under 200 lines; overflow should be split into `.agent/` with rationale).
+4. Display human-readable usage stats in exactly one Markdown layer per memory root.
+5. Validate hierarchy, marker coverage, stats placement, and secret hygiene before finishing.
 
-A parent `agent.md` normally links only to its own `.agent/*.md` files and immediate child directories' `agent.md` files. Child-private details stay inside the child memory system. Shared cross-project facts, such as a common server topology, credential rule, tool policy, or usage-stat convention, can be promoted to the parent layer when they affect multiple children.
+## Migration SOP (Stats Display Layer)
 
-Usage statistics should be displayed in one Markdown layer per memory root. The default is to keep the human-readable `count/since/last` table in `agent.md` and keep `.agent/index.md` as navigation only.
+If both `agent.md` and `.agent/index.md` display human-readable stats:
+1. Detect duplicate display blocks.
+2. Choose a target layer (default `agent.md` unless repo convention says otherwise).
+3. Merge/move display table into the target layer.
+4. Replace non-target table with navigation-only link.
+5. Preserve machine-readable stats files unchanged.
 
-## Workflow
+## Output Contract
 
-1. Resolve the active project root from the current working directory unless a user names another path.
-2. Run deterministic scanning before rewriting memory.
-3. Let the LLM classify scan output into durable lessons, temporary noise, risks, and follow-ups.
-4. Update the local `agent.md` and `.agent/` pages with concise, project-specific entries.
-5. Keep root entry files short, usually under 200 lines.
-6. Validate usage markers, hierarchy, inventory freshness, and secret hygiene before finishing.
-
-The workflow intentionally separates deterministic collection from semantic judgment. Scripts collect verifiable facts; the LLM decides what is worth preserving and how shallow it should live.
+Each skill execution should return:
+- Changed files
+- Stable lessons added/updated
+- Risks and ambiguities
+- Follow-up actions
 
 ## Repository Layout
 
@@ -42,7 +65,7 @@ The workflow intentionally separates deterministic collection from semantic judg
 |
 |-- agents/
 |   `-- openai.yaml
-|       `-- Display metadata and default prompt for Codex.
+|       `-- Display metadata, default prompt, and version.
 |
 |-- references/
 |   |-- workflow.md
@@ -51,9 +74,12 @@ The workflow intentionally separates deterministic collection from semantic judg
 |   `-- llm_tradeoffs.md
 |       `-- Guidance on what scripts should do and what the LLM should judge.
 |
-`-- scripts/
-    `-- run_memory_steward.ps1
-        `-- PowerShell scanner and optional memory-system bootstrapper.
+|-- scripts/
+|   `-- run_memory_steward.ps1
+|       `-- PowerShell scanner and optional memory-system bootstrapper.
+|
+`-- RELEASE_NOTES.md
+    `-- Published release summaries.
 ```
 
 ## Guardrails
@@ -62,8 +88,3 @@ The workflow intentionally separates deterministic collection from semantic judg
 - Do not store secrets, credentials, tokens, or raw private transcripts in memory docs.
 - Do not link from a parent `agent.md` into child `.agent/` details unless the target page is explicitly shared across multiple children.
 - Do not split human-readable usage statistics between `agent.md` and `.agent/index.md` in the same memory root.
-- Prefer PowerShell-native scanning on Windows when the bundled `rg.exe` path is blocked.
-
-## When To Use
-
-Use this skill when a Codex session produces lessons that should affect future work, when a project needs `agent.md` / `.agent/` bootstrapping, when context is about to be compressed, or when an existing memory tree needs hierarchy and usage-stat cleanup.
