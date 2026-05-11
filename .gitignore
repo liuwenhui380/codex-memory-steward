@@ -5,3 +5,5 @@ Thumbs.db
 codex_memory_maintenance_logs/
 codex_memory_steward_logs/
 .agent/reports/
+.agent/
+agent.md
