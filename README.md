@@ -78,8 +78,8 @@ Each skill execution should return:
 |   `-- run_memory_steward.ps1
 |       `-- PowerShell scanner and optional memory-system bootstrapper.
 |
-`-- RELEASE_NOTES.md
-    `-- Published release summaries.
+`-- CHANGELOG.md
+    `-- Cumulative version history.
 ```
 
 ## Guardrails

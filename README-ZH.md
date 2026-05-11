@@ -78,8 +78,8 @@ Codex Memory Steward 是一个可复用的 Codex skill 和项目记忆维护流�
 |   `-- run_memory_steward.ps1
 |       `-- PowerShell 扫描器，可选创建或更新项目记忆系统。
 |
-`-- RELEASE_NOTES.md
-    `-- 发布说明。
+`-- CHANGELOG.md
+    `-- 累积版本历史。
 ```
 
 ## 边界规则

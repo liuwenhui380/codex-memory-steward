@@ -1,9 +1,16 @@
-# Release Notes
+# Changelog
+
+## v1.1.3 - 2026-05-11
+
+### Changed
+- Renamed tracked version history from `RELEASE_NOTES.md` to `CHANGELOG.md`.
+- Kept tracked `references/` focused on runtime reference files used by the skill.
+- Moved process review logs into local `.agent/` project memory instead of shipping them as runtime references.
 
 ## v1.1.2 - 2026-05-11
 
 ### Added
-- Added `references/skill_review_2026-05-11.md` as an auditable review and fix log.
+- Added an auditable skill review and fix log for the scanner reliability pass.
 
 ### Fixed
 - `run_memory_steward.ps1` now reads text summaries with explicit UTF-8 encoding, fixing mojibake in generated inventories for files such as `README-ZH.md`.
