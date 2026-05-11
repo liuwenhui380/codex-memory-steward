@@ -1,5 +1,17 @@
 # Release Notes
 
+## v1.1.2 - 2026-05-11
+
+### Added
+- Added `references/skill_review_2026-05-11.md` as an auditable review and fix log.
+
+### Fixed
+- `run_memory_steward.ps1` now reads text summaries with explicit UTF-8 encoding, fixing mojibake in generated inventories for files such as `README-ZH.md`.
+- `run_memory_steward.ps1 -Apply` now skips gitignored files when building `.agent/project_inventory.md`, so local-only memory such as `agent.md` is not listed as project source content.
+
+### Compatibility
+- Backward-compatible script behavior. Non-Git folders still scan normally; Git worktrees get additional ignore-aware filtering.
+
 ## v1.1.1 - 2026-05-11
 
 ### Added

@@ -111,12 +111,24 @@ function Test-ProbablyTextFile {
 function Get-ProjectFiles {
     param([string]$Root)
     $skipDirs = @('.git', '.agent', '.cache', 'node_modules', 'dist', 'build', 'bin', 'obj', '__pycache__', '.venv', 'venv')
+    $gitAvailable = $false
+    try {
+        $null = & git -C $Root rev-parse --is-inside-work-tree 2>$null
+        $gitAvailable = ($LASTEXITCODE -eq 0)
+    }
+    catch {
+        $gitAvailable = $false
+    }
     Get-ChildItem -LiteralPath $Root -Recurse -File -Force -ErrorAction SilentlyContinue |
         Where-Object {
             $relative = ConvertTo-ProjectRelativePath -Root $Root -Path $_.FullName
             $parts = $relative -split '/'
             foreach ($part in $parts) {
                 if ($skipDirs -contains $part) { return $false }
+            }
+            if ($gitAvailable) {
+                $null = & git -C $Root check-ignore --quiet -- $relative 2>$null
+                if ($LASTEXITCODE -eq 0) { return $false }
             }
             return $true
         } |
@@ -129,7 +141,7 @@ function Get-FileSummary {
     if (-not (Test-ProbablyTextFile -File $File.FullName)) {
         return 'binary or non-text file'
     }
-    $lines = @(Get-Content -LiteralPath $File.FullName -TotalCount 80 -ErrorAction SilentlyContinue)
+    $lines = @([System.IO.File]::ReadLines($File.FullName, [System.Text.Encoding]::UTF8) | Select-Object -First 80)
     $firstUseful = @($lines | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and -not $_.StartsWith('#') -and -not $_.StartsWith('//') -and -not $_.StartsWith('<!-- usage:') } | Select-Object -First 1)
     if ($firstUseful.Count -gt 0) {
         $summary = $firstUseful[0]
