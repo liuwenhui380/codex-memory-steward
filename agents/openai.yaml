@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex Memory Steward"
   short_description: "Steward progressive Codex memory docs"
-  default_prompt: "Use $codex-memory-steward to update project memory before compressing a long session."
+  default_prompt: "Use $codex-memory-steward to scan project memory, read only the matching route, record the entry actually used, and split oversized memory by concrete topic. Prefer concise Simplified Chinese when the user works in Chinese."

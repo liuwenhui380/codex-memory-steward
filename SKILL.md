@@ -1,37 +1,61 @@
 ---
 name: codex-memory-steward
-description: Steward progressive Codex project memory systems. Use when Codex needs to create or update agent.md/.agent memory docs, record stable lessons before context compression, summarize local Codex session records, or export this memory workflow as a reusable skill.
+description: Steward progressive Codex project memory systems with explicit usage counting, minimal recall routes, tier recommendations, and concrete-topic file splitting. Use when Codex needs to create, update, compact, promote, demote, archive, validate, or split agent.md/.agent memory; record stable lessons before context compression; or maintain reusable project memory without loading whole categories.
 ---
 
 # Codex Memory Steward
 
-Use this skill to steward long-running Codex project memory without letting useful operational knowledge drift or sprawl. Prefer a short root memory file plus progressively disclosed reference files.
+Steward long-running project memory with the smallest useful recall path. Scripts collect facts and update explicit counters; the LLM decides meaning, wording, and semantic file boundaries.
 
-## Optimized Workflow
+## Minimal Recall Workflow
 
-Use a two-lane process: scripts handle deterministic collection, while the LLM handles semantic judgment and rewriting.
+1. Run the deterministic scanner. Use Markdown for a short human report or JSON for exact filtering.
+2. Read `agent.md`, then at most one matching index and one matching detail file. Do not preload an entire memory category.
+3. After a stable entry actually changes the current decision or action, record that use with `-TouchId ... -Quiet`. The user does not need to update counters manually, and the report is not reloaded.
+4. Write only stable lessons. Follow the user's/project's language; for Chinese projects, prefer concise Simplified Chinese while preserving technical identifiers.
+5. Review tier and oversized-file recommendations. Scripts propose; Codex or an optional Luna planner performs semantic moves after safety review.
+6. Re-run validation and inspect the final diff.
 
-1. Run a deterministic scan for `agent.md`, `AGENTS.md`, `.agent/`, README files, usage markers, and session records.
-2. Ask the LLM to triage scan output into stable lessons, one-off noise, risks, and action items.
-3. Keep the root memory file under 200 lines; move details into `.agent/` or another hidden memory directory.
-4. Add one usage marker near each stable entry point:
+## Usage Marker
+
+Keep one globally unique marker near each stable entry point. Existing markers remain valid; `tier` and `pinned` are optional.
 
 ```html
-<!-- usage:agent.area.topic count=0 since=YYYY-MM-DD last=never -->
+<!-- usage:agent.area.topic count=0 since=YYYY-MM-DD last=never tier=detail pinned=false -->
 ```
 
-5. Before context compression at about four fifths of the window, update memory docs with stable new lessons, then summarize.
-6. Validate with the bundled script or the repository's own memory checker, then re-read the diff for hallucinated or over-broad memories.
+```powershell
+# Short read-only report
+./scripts/run_memory_steward.ps1 -RepoRoot <repo>
+
+# Record one entry that was actually used
+./scripts/run_memory_steward.ps1 -RepoRoot <repo> -TouchId agent.area.topic -Quiet
+
+# Full machine-readable inventory for targeted filtering
+./scripts/run_memory_steward.ps1 -RepoRoot <repo> -OutputFormat Json
+```
+
+## Layering Defaults
+
+- `root`: `agent.md`, target at most 80 lines; pinned safety rules and highest-value routes only.
+- `index`: category routing, target at most 80 lines; one-line summary, keywords, and links.
+- `detail`: one independently recallable topic, at most 120 lines and 12 KiB.
+- `archive`: low-use historical memory that remains linked but is excluded from normal recall.
+
+`pinned=true` prevents automatic demotion. Usage-based recommendations use `count`, `since`, and `last`; they never silently delete or move content.
 
 ## Resources
 
-- Read `references/workflow.md` for detailed project-memory layout rules.
-- Read `references/llm_tradeoffs.md` before redesigning the workflow or deciding what the LLM should automate.
-- Use `scripts/run_memory_steward.ps1` as a generic checker for `agent.md`, `.agent/`, usage markers, and recent session records.
+- Read `references/workflow.md` for the end-to-end stewardship sequence.
+- Read `references/tiering.md` only when promoting, demoting, or pinning memory.
+- Read `references/splitting.md` only when a file is oversized or mixes several concrete topics.
+- Read `references/llm_tradeoffs.md` before changing script/LLM responsibilities.
+- Use `scripts/run_memory_steward.ps1`; it writes a report only when `-ReportRoot <dir>` is explicitly supplied.
 
 ## Boundaries
 
 - Do not store secrets, credentials, or raw private transcript dumps in memory docs.
-- Do not auto-commit, auto-push, or switch the user's main worktree.
+- Do not infer usage from full chat logs. Increment only an entry that was actually read and used.
+- Do not auto-commit, auto-push, or switch the user's project worktree. Publishing this skill's own repository is allowed only when the user explicitly requests it.
 - Do not run interactive analysis pipelines as unattended memory stewardship.
-- Do not let the LLM directly rewrite memory from raw logs without a deterministic scan and a final diff review.
+- Do not let Luna or another LLM directly rewrite files from raw logs. Filter locally, generate a plan, review it, then edit and validate.

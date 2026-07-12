@@ -7,6 +7,7 @@
 - Relevance judgment: decide whether a lesson will matter in future sessions.
 - Rewriting: make memory concise, warm, and project-specific.
 - Risk spotting: notice privacy leaks, contradictory rules, or scope creep.
+- Semantic splitting: separate independently recallable topics after a deterministic size/heading scan.
 
 ## Do Not Rely On LLMs For
 
@@ -14,6 +15,7 @@
 - Parsing huge raw logs without pre-filtering.
 - Safely handling secrets in raw transcripts.
 - Distinguishing temporary debug output from durable rules without evidence.
+- Updating usage counts by guessing which memories a conversation probably used.
 
 ## Design Rule
 
@@ -27,6 +29,7 @@ Let scripts produce facts and small candidate sets. Let the LLM decide meaning, 
 - If the source is a raw session log, summarize candidates first; never paste entire transcripts into memory docs.
 - If the LLM writes a new rule, it should be specific enough to change future behavior.
 - If compressing memory docs, use `count`, `since`, and `last` as evidence, but let the LLM check whether a low-frequency entry is safety-critical before removing it.
+- Luna or another optional model may generate a split plan from locally filtered content, but scripts must validate the plan and the model must never write files directly.
 
 ## Failure Modes To Check
 

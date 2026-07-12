@@ -22,7 +22,7 @@ The method separates project-memory stewardship into two complementary stages:
 
 4. Usage-feedback markers
 
-   Usage markers record `count`, `since`, and `last` metadata for memory entries. Frequently or recently used memories are preserved first, while low-use entries can be compressed or demoted after review.
+   Usage markers record `count`, `since`, and `last` metadata for memory entries. An entry is incremented only after it is actually used. Frequency, recency, and safety pinning produce evidence-backed root/index/detail/archive recommendations.
 
 ## Key Features
 
@@ -31,6 +31,10 @@ The method separates project-memory stewardship into two complementary stages:
 - Low-noise memory: the method favors rules that change future behavior instead of storing complete session history.
 - Layered memory structure: a short root file points to hidden detail pages for deeper project knowledge.
 - Usage-marker mechanism: frequency and recency become practical signals for memory compression.
+- Explicit usage touch: `-TouchId` safely increments one globally unique memory entry without parsing full chat logs.
+- Compact recall reports: the default output shows only the highest-value routes; JSON retains the full inventory for exact filtering.
+- Concrete-topic splitting: root and index files target 80 lines; detail files target 120 lines and 12 KiB, even inside one broad category.
+- Optional Luna planning: Luna can propose semantic split plans from locally filtered content, while deterministic scripts validate the result.
 - Portable skill package: the approach is not tied to one project and can be reused across Codex repositories.
 
 ## Method Directory Structure
@@ -48,13 +52,41 @@ The method separates project-memory stewardship into two complementary stages:
 |   |-- workflow.md
 |   |   `-- Progressive memory workflow guidance for root memory, detail pages, and compression checkpoints.
 |   |
+|   |-- tiering.md
+|   |   `-- Usage counting, safety pinning, and root/index/detail/archive recommendation rules.
+|   |
+|   |-- splitting.md
+|   |   `-- Concrete-topic split boundaries, optional Luna plans, and post-split validation.
+|   |
 |   `-- llm_tradeoffs.md
 |       `-- Division-of-labor guidance for what scripts should handle and what the LLM should judge.
 |
-`-- scripts/
-    `-- run_memory_steward.ps1
-        `-- PowerShell scanner that generates a project-memory status report and usage-marker summary.
+|-- scripts/
+|   `-- run_memory_steward.ps1
+|       `-- PowerShell scanner that reports, touches, ranks, and identifies oversized memory.
+|
+`-- tests/
+    `-- run_tests.ps1
+        `-- Dependency-free regression tests for counters, concurrency, encoding, tiers, and size boundaries.
 ```
+
+## Quick Start
+
+```powershell
+# Compact, read-only report
+./scripts/run_memory_steward.ps1 -RepoRoot C:\path\to\project
+
+# Record a memory entry that was actually used
+./scripts/run_memory_steward.ps1 -RepoRoot C:\path\to\project -TouchId agent.area.topic -Quiet
+
+# Full inventory for precise filtering or automation
+./scripts/run_memory_steward.ps1 -RepoRoot C:\path\to\project -OutputFormat Json
+
+# Run the dependency-free regression suite
+./tests/run_tests.ps1
+```
+
+The scanner never moves or deletes memory. Touch updates one ID at a time with a repository lock, strict UTF-8 validation, and atomic replacement. It reports tier changes and oversized files; Codex or an optional Luna planner performs semantic splitting only after local secret filtering and diff review. New memory follows the user's/project's language, with concise Simplified Chinese preferred for Chinese workflows.
 
 ## Method Flow
 
