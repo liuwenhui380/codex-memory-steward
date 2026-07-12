@@ -1,56 +1,85 @@
 # Codex Memory Steward
 
-Codex Memory Steward is a memory-management method and reusable Codex skill for long-running Codex projects. It turns stable, reusable lessons from development sessions into structured project memory.
+[中文说明](README-ZH.md)
 
-The goal is not to save chat history. The goal is to preserve project knowledge that can shape future decisions across multi-step development, context compression, and cross-session collaboration.
+Codex Memory Steward is a reusable Codex skill and workflow for maintaining project-local memory systems. It helps long-running Codex work preserve stable lessons, operating rules, and file maps without turning chat history into noisy documentation.
 
-## Core Principle
+## When This Skill Should Trigger
 
-The method separates project-memory stewardship into two complementary stages:
+Use this skill when at least one high-confidence signal is present:
+- The task explicitly mentions `agent.md`, `.agent/`, memory hierarchy/index, or usage markers.
+- The task asks for pre-compression memory curation.
+- The task asks to normalize human-readable stats display between `agent.md` and `.agent/index.md`.
+- The task asks to bootstrap a local memory system.
 
-1. Deterministic scanning
+## When It Should Not Trigger
 
-   Scripts collect verifiable facts first, such as `agent.md` line counts, `.agent/` detail pages, `AGENTS.md`, `README.md`, usage markers, and recent session-record locations. This gives the LLM stable input instead of relying on memory or impression.
+Do not use this skill for generic docs editing, README polishing, or unrelated repository cleanup when memory-stewardship goals are not explicit.
 
-2. Semantic judgment and compression
+## Decision Priority
 
-   The LLM reviews the scan output and decides which findings are durable lessons and which are one-off debugging noise. Stable lessons are compressed into concise entries and placed in the root memory file or detailed memory pages.
+If instructions conflict, apply this order:
+1. User explicit instruction.
+2. Existing repo-local convention in that memory root.
+3. Default policy in `SKILL.md`.
 
-3. Progressive disclosure
+## What It Manages
 
-   The root `agent.md` stays short and navigation-focused. Detailed operational knowledge lives in `.agent/*.md`, so future agents can read the most important constraints first and expand into details only when needed.
+- `agent.md`: the local memory entry point for the current directory.
+- `.agent/*.md`: detailed memory pages for local rules, incidents, inventories, and compression notes.
+- `.agent/project_inventory.md`: generated project file inventory and rough content map.
+- Usage markers: lightweight `count`, `since`, and `last` metadata for deciding what should stay shallow.
+- Session-derived lessons: durable findings extracted from Codex session records, not raw transcript dumps.
 
-4. Usage-feedback markers
+## Workflow Highlights
 
-   Usage markers record `count`, `since`, and `last` metadata for memory entries. An entry is incremented only after it is actually used. Frequency, recency, and safety pinning produce evidence-backed root/index/detail/archive recommendations.
+1. Resolve the active project root (cwd by default unless user names another root).
+2. Run deterministic scanning first; let the LLM perform semantic triage.
+3. Keep `agent.md` and category indexes near 80 lines; keep concrete-topic detail files under 120 lines and 12 KiB.
+4. Display human-readable usage stats in exactly one Markdown layer per memory root.
+5. Increment an entry only after it is actually used; frequency, recency, and safety pinning drive tier recommendations.
+6. Split oversized files by independently recallable topic, even inside one broad category.
+7. Validate hierarchy, marker coverage, stats placement, links, encoding, and secret hygiene before finishing.
 
-## Key Features
+## Migration SOP (Stats Display Layer)
 
-- Script and LLM division of labor: scripts collect facts, while the LLM handles semantic filtering and concise rewriting.
-- Compression-aware workflow: stable lessons are captured before long-session context compression.
-- Low-noise memory: the method favors rules that change future behavior instead of storing complete session history.
-- Layered memory structure: a short root file points to hidden detail pages for deeper project knowledge.
-- Usage-marker mechanism: frequency and recency become practical signals for memory compression.
-- Explicit usage touch: `-TouchId` safely increments one globally unique memory entry without parsing full chat logs.
-- Compact recall reports: the default output shows only the highest-value routes; JSON retains the full inventory for exact filtering.
-- Concrete-topic splitting: root and index files target 80 lines; detail files target 120 lines and 12 KiB, even inside one broad category.
-- Optional Luna planning: Luna can propose semantic split plans from locally filtered content, while deterministic scripts validate the result.
-- Portable skill package: the approach is not tied to one project and can be reused across Codex repositories.
+If both `agent.md` and `.agent/index.md` display human-readable stats:
+1. Detect duplicate display blocks.
+2. Choose a target layer (default `agent.md` unless repo convention says otherwise).
+3. Merge/move display table into the target layer.
+4. Replace non-target table with navigation-only link.
+5. Preserve machine-readable stats files unchanged.
 
-## Method Directory Structure
+## Usage-Tiered Recall
+
+- `-TouchId` increments one globally unique entry without parsing full chat logs.
+- `-Quiet` records use without loading another report into context.
+- Default Markdown is compact; JSON retains the full inventory for exact filtering.
+- Touch uses a repository lock, strict UTF-8 validation, and atomic replacement.
+- Optional Luna planning may propose semantic splits from locally filtered content; deterministic checks validate the result.
+
+## Output Contract
+
+Each skill execution should return:
+- Changed files
+- Stable lessons added/updated
+- Risks and ambiguities
+- Follow-up actions
+
+## Repository Layout
 
 ```text
 .
 |-- SKILL.md
-|   `-- Codex skill entry point defining when to use the memory-stewardship method and its core workflow.
+|   `-- Codex skill entry point and operating boundaries.
 |
 |-- agents/
 |   `-- openai.yaml
-|       `-- Skill display metadata, including display name, short description, and default prompt.
+|       `-- Display metadata, default prompt, and version.
 |
 |-- references/
 |   |-- workflow.md
-|   |   `-- Progressive memory workflow guidance for root memory, detail pages, and compression checkpoints.
+|   |   `-- Detailed hierarchy, stats-placement, and validation rules.
 |   |
 |   |-- tiering.md
 |   |   `-- Usage counting, safety pinning, and root/index/detail/archive recommendation rules.
@@ -59,20 +88,26 @@ The method separates project-memory stewardship into two complementary stages:
 |   |   `-- Concrete-topic split boundaries, optional Luna plans, and post-split validation.
 |   |
 |   `-- llm_tradeoffs.md
-|       `-- Division-of-labor guidance for what scripts should handle and what the LLM should judge.
+|       `-- Guidance on what scripts should do and what the LLM should judge.
 |
 |-- scripts/
 |   `-- run_memory_steward.ps1
-|       `-- PowerShell scanner that reports, touches, ranks, and identifies oversized memory.
+|       `-- PowerShell scanner/bootstrapper that reports, touches, ranks, inventories, and identifies oversized memory.
 |
-`-- tests/
-    `-- run_tests.ps1
-        `-- Dependency-free regression tests for counters, concurrency, encoding, tiers, and size boundaries.
+|-- tests/
+|   `-- run_tests.ps1
+|       `-- Dependency-free regression tests for counters, concurrency, encoding, tiers, inventory, and size boundaries.
+|
+`-- CHANGELOG.md
+    `-- Cumulative version history.
 ```
 
 ## Quick Start
 
 ```powershell
+# Bootstrap/update project-local memory and inventory
+./scripts/run_memory_steward.ps1 -RepoRoot C:\path\to\project -Apply
+
 # Compact, read-only report
 ./scripts/run_memory_steward.ps1 -RepoRoot C:\path\to\project
 
@@ -88,23 +123,9 @@ The method separates project-memory stewardship into two complementary stages:
 
 The scanner never moves or deletes memory. Touch updates one ID at a time with a repository lock, strict UTF-8 validation, and atomic replacement. It reports tier changes and oversized files; Codex or an optional Luna planner performs semantic splitting only after local secret filtering and diff review. New memory follows the user's/project's language, with concise Simplified Chinese preferred for Chinese workflows.
 
-## Method Flow
+## Guardrails
 
-```text
-Scan project memory
-        |
-        v
-Collect verifiable facts
-        |
-        v
-Classify stable lessons vs. noise
-        |
-        v
-Update root and detailed memory docs
-        |
-        v
-Validate markers and memory size
-        |
-        v
-Use results before future compression
-```
+- Do not write project memory under `~/.codex`; use that location only as an input source for session records.
+- Do not store secrets, credentials, tokens, or raw private transcripts in memory docs.
+- Do not link from a parent `agent.md` into child `.agent/` details unless the target page is explicitly shared across multiple children.
+- Do not split human-readable usage statistics between `agent.md` and `.agent/index.md` in the same memory root.

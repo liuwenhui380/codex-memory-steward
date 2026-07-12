@@ -179,6 +179,19 @@ try {
     $savedReport = Get-Content -LiteralPath @(Get-ChildItem -LiteralPath $reportRoot -Filter 'memory-steward-*.md')[0].FullName -Raw
     Assert-True ($savedReport -match '# Codex Memory Steward Report') 'ReportRoot 文件必须保持 Markdown 报告内容'
 
+    $applyFixture = Join-Path $tempRoot 'apply-fixture'
+    Write-Utf8File -Path (Join-Path $applyFixture 'src\sample.txt') -Content 'sample content'
+    $applyJson = (& $scriptPath -RepoRoot $applyFixture -SessionRoots @() -Today ([datetime]'2026-07-12') -Apply -OutputFormat Json | Out-String | ConvertFrom-Json)
+    $applyAgent = Join-Path $applyFixture 'agent.md'
+    $applyInventory = Join-Path $applyFixture '.agent\project_inventory.md'
+    Assert-True (Test-Path -LiteralPath $applyAgent) 'Apply 应在项目根创建 agent.md'
+    Assert-True (Test-Path -LiteralPath $applyInventory) 'Apply 应创建项目文件索引'
+    Assert-True ($null -ne $applyJson.applied) 'Apply 的 JSON 报告应返回更新路径'
+    $inventoryText = [System.IO.File]::ReadAllText($applyInventory)
+    Assert-True ($inventoryText -match '# 项目文件索引' -and $inventoryText -match 'src/sample.txt') '项目索引应使用中文并包含项目文件'
+    Assert-True ($inventoryText -notmatch '\.agent/project_inventory\.md') '项目索引不能递归收录 .agent 输出'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $applyFixture '.agent\reports'))) '未显式提供 ReportRoot 时不得落盘报告'
+
     Write-Output "PASS: $script:passed assertions"
 }
 finally {

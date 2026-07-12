@@ -15,7 +15,8 @@ param(
     [int]$RootMaxLines = 80,
     [int]$IndexMaxLines = 80,
     [int]$DetailMaxLines = 120,
-    [int]$DetailMaxBytes = 12288
+    [int]$DetailMaxBytes = 12288,
+    [switch]$Apply
 )
 
 Set-StrictMode -Version Latest
@@ -122,6 +123,165 @@ function Get-SessionFiles {
         }
     }
     return @($files | Sort-Object FullName -Unique)
+}
+
+function ConvertTo-ProjectRelativePath {
+    param([string]$Root, [string]$Path)
+    $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $pathFull = [System.IO.Path]::GetFullPath($Path)
+    if ($pathFull.StartsWith($rootFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $pathFull.Substring($rootFull.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+        return ($relative -replace '\\', '/')
+    }
+    return $pathFull
+}
+
+function Test-ProbablyTextFile {
+    param([string]$File)
+    $buffer = New-Object byte[] 4096
+    $stream = [System.IO.File]::OpenRead($File)
+    try {
+        $read = $stream.Read($buffer, 0, $buffer.Length)
+        for ($i = 0; $i -lt $read; $i++) {
+            if ($buffer[$i] -eq 0) { return $false }
+        }
+        return $true
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Get-ProjectFiles {
+    param([string]$Root)
+    $skipDirs = @('.git', '.agent', '.cache', 'node_modules', 'dist', 'build', 'bin', 'obj', '__pycache__', '.venv', 'venv')
+    $gitAvailable = $false
+    try {
+        $null = & git -C $Root rev-parse --is-inside-work-tree 2>$null
+        $gitAvailable = ($LASTEXITCODE -eq 0)
+    }
+    catch {
+        $gitAvailable = $false
+    }
+    Get-ChildItem -LiteralPath $Root -Recurse -File -Force -ErrorAction SilentlyContinue |
+        Where-Object {
+            $relative = ConvertTo-ProjectRelativePath -Root $Root -Path $_.FullName
+            $parts = $relative -split '/'
+            foreach ($part in $parts) {
+                if ($skipDirs -contains $part) { return $false }
+            }
+            if ($gitAvailable) {
+                $null = & git -C $Root check-ignore --quiet -- $relative 2>$null
+                if ($LASTEXITCODE -eq 0) { return $false }
+            }
+            return $true
+        } |
+        Sort-Object FullName
+}
+
+function Get-FileSummary {
+    param([System.IO.FileInfo]$File, [string]$Root)
+    $relative = ConvertTo-ProjectRelativePath -Root $Root -Path $File.FullName
+    if (-not (Test-ProbablyTextFile -File $File.FullName)) {
+        return '二进制或非文本文件'
+    }
+    $lines = @([System.IO.File]::ReadLines($File.FullName, [System.Text.Encoding]::UTF8) | Select-Object -First 80)
+    $firstUseful = @($lines | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and -not $_.StartsWith('#') -and -not $_.StartsWith('//') -and -not $_.StartsWith('<!-- usage:') } | Select-Object -First 1)
+    if ($firstUseful.Count -gt 0) {
+        $summary = $firstUseful[0]
+    }
+    elseif ($lines.Count -gt 0) {
+        $summary = ($lines[0]).Trim()
+    }
+    else {
+        $summary = '空文本文件'
+    }
+    if ($summary.Length -gt 120) { $summary = $summary.Substring(0, 117) + '...' }
+    return $summary
+}
+
+function Update-ProjectInventory {
+    param([string]$Root, [string]$InventoryFile)
+    $files = @(Get-ProjectFiles -Root $Root)
+    $values = New-Object System.Collections.Generic.List[string]
+    $values.Add('# 项目文件索引')
+    $values.Add('')
+    $values.Add('<!-- usage:agent.inventory.files count=0 since=' + (Get-Date -Format 'yyyy-MM-dd') + ' last=never -->')
+    $values.Add('')
+    $values.Add('由 `scripts/run_memory_steward.ps1 -Apply` 生成；项目结构或文件职责变化后重新运行。')
+    $values.Add('')
+    $values.Add('| Path | Size | 内容摘要 |')
+    $values.Add('| --- | ---: | --- |')
+    foreach ($file in $files) {
+        $relative = ConvertTo-ProjectRelativePath -Root $Root -Path $file.FullName
+        $summary = (Get-FileSummary -File $file -Root $Root) -replace '\|', '/'
+        $values.Add(('| `{0}` | {1} | {2} |' -f $relative, $file.Length, $summary))
+    }
+    Set-Content -LiteralPath $InventoryFile -Value $values
+}
+
+function Update-AgentIndex {
+    param([string]$Root, [string]$AgentFile)
+    $today = Get-Date -Format 'yyyy-MM-dd'
+    if (-not (Test-Path -LiteralPath $AgentFile)) {
+        $projectName = Split-Path -Leaf (Resolve-Path -LiteralPath $Root)
+        $initial = @(
+            '# 项目记忆',
+            '',
+            ('<!-- usage:agent.root.index count=0 since={0} last=never -->' -f $today),
+            '',
+            '本项目记忆存放在项目内，不写入 `~/.codex`。',
+            '',
+            '## 索引',
+            '',
+            '- `.agent/project_inventory.md`：项目文件树和内容摘要。',
+            '',
+            '## 稳定记忆',
+            '',
+            ('- 项目：`{0}`。' -f $projectName),
+            ''
+        )
+        Set-Content -LiteralPath $AgentFile -Value $initial
+        return
+    }
+
+    $text = [System.IO.File]::ReadAllText($AgentFile)
+    $changed = $false
+    if ($text -notmatch 'usage:agent\.root\.index') {
+        $text = $text.TrimEnd() + "`r`n`r`n<!-- usage:agent.root.index count=0 since=$today last=never -->`r`n"
+        $changed = $true
+    }
+    if ($text -notmatch [regex]::Escape('.agent/project_inventory.md')) {
+        $addition = @(
+            '',
+            '## 索引',
+            '',
+            '- `.agent/project_inventory.md`：项目文件树和内容摘要。',
+            ''
+        ) -join "`r`n"
+        $text = $text.TrimEnd() + "`r`n" + $addition
+        $changed = $true
+    }
+    if ($changed) {
+        Set-Content -LiteralPath $AgentFile -Value $text
+    }
+}
+
+function Update-MemorySystem {
+    param([string]$Root)
+    if (-not (Test-Path -LiteralPath $Root)) {
+        throw "RepoRoot does not exist: $Root"
+    }
+    $agentDir = Join-Path $Root '.agent'
+    New-Item -ItemType Directory -Force -Path $agentDir | Out-Null
+    $agentFile = Join-Path $Root 'agent.md'
+    $inventoryFile = Join-Path $agentDir 'project_inventory.md'
+    Update-AgentIndex -Root $Root -AgentFile $agentFile
+    Update-ProjectInventory -Root $Root -InventoryFile $inventoryFile
+    return [pscustomobject]@{
+        AgentFile = $agentFile
+        InventoryFile = $inventoryFile
+    }
 }
 
 function Test-PathInsideRoot {
@@ -436,13 +596,18 @@ function New-MarkdownReport {
         [object[]]$Oversized,
         [int]$SessionCount,
         [string[]]$Touched,
-        [string[]]$Diagnostics
+        [string[]]$Diagnostics,
+        [object]$Applied
     )
 
     $lines = New-Object System.Collections.Generic.List[string]
     $lines.Add('# Codex Memory Steward Report')
     $lines.Add('')
     $lines.Add(('- 项目：`{0}`' -f $Root))
+    if ($null -ne $Applied) {
+        $lines.Add(('- 已更新项目记忆：`{0}`' -f $Applied.AgentFile))
+        $lines.Add(('- 已更新文件索引：`{0}`' -f $Applied.InventoryFile))
+    }
     $lines.Add(('- agent.md 行数：`{0}`' -f $AgentLines))
     $lines.Add(('- Usage markers：`{0}`' -f $Markers.Count))
     $lines.Add(('- 最近会话文件：`{0}`' -f $SessionCount))
@@ -506,6 +671,11 @@ if ($RepoRoot.Length -gt $volumeRoot.Length) {
     $RepoRoot = $RepoRoot.TrimEnd('\', '/')
 }
 
+$updated = $null
+if ($Apply) {
+    $updated = Update-MemorySystem -Root $RepoRoot
+}
+
 $diagnostics = New-Object System.Collections.Generic.List[string]
 $markers = @(Get-UsageMarkers -Path $RepoRoot -Diagnostics $diagnostics)
 Add-DuplicateMarkerDiagnostics -Markers $markers -Diagnostics $diagnostics
@@ -529,13 +699,14 @@ $recommendations = @(Get-TierRecommendations -Markers $markers -AsOfDate $Today 
 $oversizedFiles = @(Get-OversizedMemoryFiles -Root $RepoRoot -RootLimit $RootMaxLines -IndexLimit $IndexMaxLines -DetailLimit $DetailMaxLines -ByteLimit $DetailMaxBytes)
 $agentLines = Get-TextLineCount -File $agentFile
 
-$reportText = New-MarkdownReport -Root $RepoRoot -AgentLines $agentLines -Markers $markers -Recommendations $recommendations -Oversized $oversizedFiles -SessionCount $sessionFiles.Count -Touched $touchedIds -Diagnostics @($diagnostics)
+$reportText = New-MarkdownReport -Root $RepoRoot -AgentLines $agentLines -Markers $markers -Recommendations $recommendations -Oversized $oversizedFiles -SessionCount $sessionFiles.Count -Touched $touchedIds -Diagnostics @($diagnostics) -Applied $updated
 $reportObject = [ordered]@{
     repo = $RepoRoot
     generated_on = $Today.ToString('yyyy-MM-dd')
     agent_md_lines = $agentLines
     usage_marker_count = $markers.Count
     session_file_count = $sessionFiles.Count
+    applied = if ($null -eq $updated) { $null } else { [ordered]@{ agent_file = $updated.AgentFile; inventory_file = $updated.InventoryFile } }
     touched_ids = @($touchedIds)
     usage_markers = @($markers | Sort-Object Id | ForEach-Object {
         [ordered]@{

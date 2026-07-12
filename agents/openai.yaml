@@ -1,4 +1,5 @@
 interface:
   display_name: "Codex Memory Steward"
-  short_description: "Steward progressive Codex memory docs"
-  default_prompt: "Use $codex-memory-steward to scan project memory, read only the matching route, record the entry actually used, and split oversized memory by concrete topic. Prefer concise Simplified Chinese when the user works in Chinese."
+  short_description: "Steward tiered Codex memory, usage stats, and splitting"
+  version: "1.1.3"
+  default_prompt: "Use $codex-memory-steward to update project-local agent.md/.agent memory, recall only matching routes, record entries actually used, keep stats in one Markdown layer, and split oversized memory by concrete topic."
