@@ -15,10 +15,6 @@ $ErrorActionPreference = 'Stop'
 $PSDefaultParameterValues['Set-Content:Encoding'] = 'utf8'
 $PSDefaultParameterValues['Add-Content:Encoding'] = 'utf8'
 
-if ([string]::IsNullOrWhiteSpace($ReportRoot)) {
-    $ReportRoot = Join-Path (Join-Path $RepoRoot '.agent') 'reports'
-}
-
 function Get-TextLineCount {
     param([string]$File)
     if (-not (Test-Path -LiteralPath $File)) { return 0 }
@@ -62,6 +58,41 @@ function Get-UsageMarkers {
     return $markers
 }
 
+function Get-MarkerIssues {
+    param([object[]]$Markers)
+    $issues = New-Object System.Collections.Generic.List[object]
+    foreach ($group in @($Markers | Group-Object Id | Where-Object { $_.Count -gt 1 })) {
+        $issues.Add([pscustomobject]@{
+            Type = 'duplicate-id'
+            Id = $group.Name
+            Detail = "Found $($group.Count) markers with the same ID."
+        })
+    }
+    foreach ($marker in $Markers) {
+        if ($marker.Since -ne 'unknown') {
+            $parsed = [datetime]::MinValue
+            if (-not [datetime]::TryParseExact($marker.Since, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$parsed)) {
+                $issues.Add([pscustomobject]@{
+                    Type = 'invalid-since'
+                    Id = $marker.Id
+                    Detail = "Invalid since date: $($marker.Since)."
+                })
+            }
+        }
+        if ($marker.Last -ne 'never') {
+            $parsed = [datetime]::MinValue
+            if (-not [datetime]::TryParseExact($marker.Last, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$parsed)) {
+                $issues.Add([pscustomobject]@{
+                    Type = 'invalid-last'
+                    Id = $marker.Id
+                    Detail = "Invalid last date: $($marker.Last)."
+                })
+            }
+        }
+    }
+    return $issues.ToArray()
+}
+
 function Get-SessionFiles {
     param([string[]]$Roots, [datetime]$Cutoff)
     $files = New-Object System.Collections.Generic.List[object]
@@ -85,11 +116,17 @@ function ConvertTo-ProjectRelativePath {
     param([string]$Root, [string]$Path)
     $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
     $pathFull = [System.IO.Path]::GetFullPath($Path)
-    if ($pathFull.StartsWith($rootFull, [System.StringComparison]::OrdinalIgnoreCase)) {
-        $relative = $pathFull.Substring($rootFull.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
-        return ($relative -replace '\\', '/')
+    $rootPrefix = $rootFull + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $pathFull.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $pathFull
     }
-    return $pathFull
+    $relative = $pathFull.Substring($rootPrefix.Length)
+    return ($relative -replace '\\', '/')
+}
+
+function Test-SensitiveFileName {
+    param([string]$FileName)
+    return $FileName -match '(?i)^(\.env(?:\..*)?|.*\.(?:pem|key|p12|pfx|kdbx)|.*(?:credentials?|secrets?|private[_-]?key).*)$'
 }
 
 function Test-ProbablyTextFile {
@@ -126,6 +163,7 @@ function Get-ProjectFiles {
             foreach ($part in $parts) {
                 if ($skipDirs -contains $part) { return $false }
             }
+            if (Test-SensitiveFileName -FileName ([System.IO.Path]::GetFileName($_.FullName))) { return $false }
             if ($gitAvailable) {
                 $null = & git -C $Root check-ignore --quiet -- $relative 2>$null
                 if ($LASTEXITCODE -eq 0) { return $false }
@@ -138,10 +176,16 @@ function Get-ProjectFiles {
 function Get-FileSummary {
     param([System.IO.FileInfo]$File, [string]$Root)
     $relative = ConvertTo-ProjectRelativePath -Root $Root -Path $File.FullName
+    if (Test-SensitiveFileName -FileName $File.Name) {
+        return 'sensitive file omitted'
+    }
     if (-not (Test-ProbablyTextFile -File $File.FullName)) {
         return 'binary or non-text file'
     }
     $lines = @([System.IO.File]::ReadLines($File.FullName, [System.Text.Encoding]::UTF8) | Select-Object -First 80)
+    if (@($lines | Where-Object { $_ -match '(?i)(api[_-]?key|access[_-]?token|password|passwd|secret|authorization)\s*[:=]' }).Count -gt 0) {
+        return 'sensitive content omitted'
+    }
     $firstUseful = @($lines | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and -not $_.StartsWith('#') -and -not $_.StartsWith('//') -and -not $_.StartsWith('<!-- usage:') } | Select-Object -First 1)
     if ($firstUseful.Count -gt 0) {
         $summary = $firstUseful[0]
@@ -244,43 +288,64 @@ if ($Apply) {
     $updated = Update-MemorySystem -Root $RepoRoot
 }
 
-New-Item -ItemType Directory -Force -Path $ReportRoot | Out-Null
+$writeReport = -not [string]::IsNullOrWhiteSpace($ReportRoot) -or $Apply
+if ($writeReport -and [string]::IsNullOrWhiteSpace($ReportRoot)) {
+    $ReportRoot = Join-Path (Join-Path $RepoRoot '.agent') 'reports'
+}
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$report = Join-Path $ReportRoot "memory-steward-$timestamp.md"
+$report = if ($writeReport) { Join-Path $ReportRoot "memory-steward-$timestamp.md" } else { $null }
 
 $agentFile = Join-Path $RepoRoot 'agent.md'
 $markers = @(Get-UsageMarkers -Path $RepoRoot)
+$markerIssues = @(Get-MarkerIssues -Markers $markers)
 $cutoff = (Get-Date).AddDays(-1 * $SessionLookbackDays)
 $sessionFiles = @(Get-SessionFiles -Roots $SessionRoots -Cutoff $cutoff)
 
-Set-Content -LiteralPath $report -Value "# Codex Memory Steward Report`n"
-Add-Content -LiteralPath $report -Value ('- Repo: `{0}`' -f $RepoRoot)
+$reportLines = New-Object System.Collections.Generic.List[string]
+$reportLines.Add('# Codex Memory Steward Report')
+$reportLines.Add('')
+$reportLines.Add(('- Repo: `{0}`' -f $RepoRoot))
 if ($Apply) {
-    Add-Content -LiteralPath $report -Value ('- Updated agent.md: `{0}`' -f $updated.AgentFile)
-    Add-Content -LiteralPath $report -Value ('- Updated inventory: `{0}`' -f $updated.InventoryFile)
+    $reportLines.Add(('- Updated agent.md: `{0}`' -f $updated.AgentFile))
+    $reportLines.Add(('- Updated inventory: `{0}`' -f $updated.InventoryFile))
 }
-Add-Content -LiteralPath $report -Value ('- agent.md lines: `{0}`' -f (Get-TextLineCount -File $agentFile))
-Add-Content -LiteralPath $report -Value ('- Usage markers: `{0}`' -f $markers.Count)
-Add-Content -LiteralPath $report -Value ('- Session files in lookback: `{0}`' -f $sessionFiles.Count)
-Add-Content -LiteralPath $report -Value ""
-Add-Content -LiteralPath $report -Value "## Usage Markers"
+$reportLines.Add(('- agent.md lines: `{0}`' -f (Get-TextLineCount -File $agentFile)))
+$reportLines.Add(('- Usage markers: `{0}`' -f $markers.Count))
+$reportLines.Add(('- Session files in lookback: `{0}`' -f $sessionFiles.Count))
+$reportLines.Add('')
+$reportLines.Add('## Usage Markers')
 foreach ($marker in $markers | Sort-Object Id) {
-    Add-Content -LiteralPath $report -Value ('- `{0}` count={1} since={2} last={3} in `{4}` line {5}' -f $marker.Id, $marker.Count, $marker.Since, $marker.Last, $marker.File, $marker.Line)
+    $reportLines.Add(('- `{0}` count={1} since={2} last={3} in `{4}` line {5}' -f $marker.Id, $marker.Count, $marker.Since, $marker.Last, $marker.File, $marker.Line))
 }
-Add-Content -LiteralPath $report -Value ""
-Add-Content -LiteralPath $report -Value "## Compression Priority Reference"
+$reportLines.Add('')
+$reportLines.Add('## Marker Validation')
+if ($markerIssues.Count -eq 0) {
+    $reportLines.Add('- No duplicate or invalid usage markers found.')
+} else {
+    foreach ($issue in $markerIssues) {
+        $reportLines.Add(('- `{0}` `{1}`: {2}' -f $issue.Type, $issue.Id, $issue.Detail))
+    }
+}
+$reportLines.Add('')
+$reportLines.Add('## Compression Priority Reference')
 $markersWithCount = @($markers | Where-Object { $_.PSObject.Properties.Name -contains 'Count' })
 $priorityMarkers = @($markersWithCount | Sort-Object @{ Expression = 'Count'; Descending = $true }, @{ Expression = 'Last'; Descending = $true }, Id | Select-Object -First 12)
 if ($priorityMarkers.Count -eq 0) {
-    Add-Content -LiteralPath $report -Value "- No usage markers found."
+    $reportLines.Add('- No usage markers found.')
 }
 elseif (@($priorityMarkers | Where-Object { [int]$_.Count -gt 0 }).Count -eq 0) {
-    Add-Content -LiteralPath $report -Value "- All usage counts are zero; preserve root/navigation entries first and compress only detailed pages after review."
+    $reportLines.Add('- All usage counts are zero; preserve root/navigation entries first and compress only detailed pages after review.')
 }
 else {
     foreach ($marker in $priorityMarkers) {
-        Add-Content -LiteralPath $report -Value ('- Keep candidate: `{0}` count={1} since={2} last={3}' -f $marker.Id, $marker.Count, $marker.Since, $marker.Last)
+        $reportLines.Add(('- Keep candidate: `{0}` count={1} since={2} last={3}' -f $marker.Id, $marker.Count, $marker.Since, $marker.Last))
     }
 }
 
-Write-Host "Report written: $report"
+if ($writeReport) {
+    New-Item -ItemType Directory -Force -Path $ReportRoot | Out-Null
+    Set-Content -LiteralPath $report -Value $reportLines
+    Write-Host "Report written: $report"
+} else {
+    $reportLines
+}

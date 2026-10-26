@@ -34,10 +34,10 @@ Codex Memory Steward 是一个可复用的 Codex skill 和项目记忆维护流�
 ## 工作流要点
 
 1. 先确认项目根目录（默认 cwd，除非用户指定其他路径）。
-2. 先做确定性扫描，再让 LLM 做语义分拣。
+2. 先做确定性扫描；默认扫描只读并把报告输出到标准输出。使用 `-ReportRoot` 保存报告，或使用 `-Apply` 更新记忆脚手架。
 3. `agent.md` 以精简为目标（建议 200 行以内；超出则拆分到 `.agent/` 并说明原因）。
 4. 同一记忆根的人类可读统计必须只在一个 Markdown 层展示。
-5. 完成前校验层级、marker 覆盖、统计位置和密钥卫生。
+5. 完成前校验层级、marker 覆盖、统计位置和密钥卫生。内置脚本会检查 marker ID/日期并避免把敏感内容写入清单；层级语义审查仍由 LLM 完成。
 
 ## 统计展示层迁移 SOP
 
@@ -76,7 +76,11 @@ Codex Memory Steward 是一个可复用的 Codex skill 和项目记忆维护流�
 |
 |-- scripts/
 |   `-- run_memory_steward.ps1
-|       `-- PowerShell 扫描器，可选创建或更新项目记忆系统。
+|       `-- 只读 PowerShell 扫描器，可选创建或更新项目记忆系统。
+|
+|-- tests/
+|   `-- run_tests.ps1
+|       `-- 验证扫描器安全性和 marker 校验的 PowerShell 回归测试。
 |
 `-- CHANGELOG.md
     `-- 累积版本历史。

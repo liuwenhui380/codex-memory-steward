@@ -66,7 +66,7 @@ Do not mix these within one memory system. Machine-readable stats files such as 
 Use this order to match LLM strengths and weaknesses:
 
 1. **Resolve root**: use the active session folder as `<project-root>` unless the user names another root.
-2. **Apply scaffold**: run `scripts/run_memory_steward.ps1 -Apply` from that folder, or pass `-RepoRoot`, to create/update `agent.md`, `.agent/`, and `.agent/project_inventory.md`.
+2. **Scan or apply**: run `scripts/run_memory_steward.ps1 -RepoRoot <root>` for a read-only report on stdout. Add `-ReportRoot <dir>` to persist a report, or add `-Apply` to create/update `agent.md`, `.agent/`, and `.agent/project_inventory.md` and persist the report under `.agent/reports`.
 3. **Collect**: count lines, find usage markers, list changed files, refresh file inventory, and sample session records.
 4. **Classify**: let the LLM group findings into stable rules, temporary noise, risks, and unknowns.
 5. **Edit**: let the LLM rewrite memory docs in concise, project-specific language, preserving hierarchical indexing and the chosen stats placement.
@@ -113,3 +113,5 @@ Use PowerShell-native scanning when `rg.exe` is unavailable or blocked:
 - For each `.agent/index.md`, verify there are no stats terms if stats live in `agent.md`: `Count`, `Last`, `call_count`, `last_called`, `usage:`, `有效调用`, `调用次数`.
 - For parent `agent.md`, search for cross-level patterns such as `child/.agent/` and `child/grandchild/agent.md`; allow them only when the entry is explicitly labeled shared and applies to multiple children.
 - Scan memory docs for known plaintext secrets before finishing.
+- The bundled scanner is not a semantic memory validator: it reports marker/date problems and protects inventory generation, while the LLM reviews hierarchy, stats placement, and redaction.
+- Nested projects are independent memory roots. Run the scanner separately for each nested root; the default run does not claim to validate child `agent.md` files.

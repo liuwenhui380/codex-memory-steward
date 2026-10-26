@@ -34,10 +34,10 @@ If instructions conflict, apply this order:
 ## Workflow Highlights
 
 1. Resolve the active project root (cwd by default unless user names another root).
-2. Run deterministic scanning first; let the LLM perform semantic triage.
+2. Run deterministic scanning first; the default scan is read-only and prints its report to stdout. Use `-ReportRoot` to save a report or `-Apply` to update the memory scaffold.
 3. Keep `agent.md` concise (target under 200 lines; overflow should be split into `.agent/` with rationale).
 4. Display human-readable usage stats in exactly one Markdown layer per memory root.
-5. Validate hierarchy, marker coverage, stats placement, and secret hygiene before finishing.
+5. Validate hierarchy, marker coverage, stats placement, and secret hygiene before finishing. The bundled script checks marker IDs/dates and omits sensitive inventory content; semantic hierarchy review remains an LLM step.
 
 ## Migration SOP (Stats Display Layer)
 
@@ -76,7 +76,11 @@ Each skill execution should return:
 |
 |-- scripts/
 |   `-- run_memory_steward.ps1
-|       `-- PowerShell scanner and optional memory-system bootstrapper.
+|       `-- Read-only PowerShell scanner and optional memory-system bootstrapper.
+|
+|-- tests/
+|   `-- run_tests.ps1
+|       `-- PowerShell regression tests for scanner safety and marker validation.
 |
 `-- CHANGELOG.md
     `-- Cumulative version history.

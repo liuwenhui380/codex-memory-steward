@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Default scanner runs read-only and prints reports to stdout; report files are written only with `-ReportRoot` or `-Apply`.
+- Inventory generation omits common sensitive filenames and secret-like content.
+- Added duplicate marker and invalid date diagnostics, safer project-relative path handling, and PowerShell regression tests.
+- Clarified that nested projects are independent memory roots and that semantic hierarchy validation remains an LLM review step.
+
 ## v1.1.3 - 2026-05-11
 
 ### Changed

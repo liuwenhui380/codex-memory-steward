@@ -45,7 +45,7 @@ Use a two-lane process: scripts handle deterministic collection; the LLM handles
 1. Identify the active session project folder (cwd by default unless user provides another root).
 2. Create/update that folder's memory system: `<project-root>/agent.md`, `<project-root>/.agent/`, `<project-root>/.agent/project_inventory.md`.
 3. For nested workspaces, repeat locally so each nested `agent.md` has independent local stats.
-4. Run deterministic scan for `agent.md`, project-local `.agent/`, `AGENTS.md`, README files, usage markers, file inventory, and session records.
+4. Run deterministic scan for `agent.md`, project-local `.agent/`, `AGENTS.md`, README files, usage markers, file inventory, and session records. The scanner is read-only unless `-Apply` or an explicit `-ReportRoot` is supplied.
 5. Ask LLM triage: stable lessons, one-off noise, risks, action items.
 6. Keep each `agent.md` concise (target under 200 lines). If over target, split details into `.agent/` and note why.
 7. Add one usage marker near each stable entry point:
@@ -68,18 +68,14 @@ When both `agent.md` and `.agent/index.md` currently display human-readable stat
 4. Replace non-target display with navigation link only.
 5. Preserve machine-readable stats files untouched.
 
-## Validation with Repair Actions
+## Validation Checklist
 
-- Check: every relevant `agent.md` has usage marker + local stats/usage section.
-  - Repair: add missing marker/section with minimal seed rows.
-- Check: parent `agent.md` has no direct child-private deep links.
-  - Repair: relink to child `agent.md` or explicitly mark shared page scope.
-- Check: human-readable stats appear in exactly one Markdown layer.
-  - Repair: keep target layer; replace other layer's table with link.
-- Check: secrets/credentials/raw private transcripts absent.
-  - Repair: redact and replace with safe operational summary.
-- Check: existing custom stats systems preserved unless user requests migration.
-  - Repair: keep machine-readable pipeline, normalize Markdown display only.
+- Check: every relevant `agent.md` has a usage marker and local stats/usage section; repair missing entries manually after review.
+- Check: parent `agent.md` has no direct child-private deep links; relink to child `agent.md` or explicitly mark shared page scope.
+- Check: human-readable stats appear in exactly one Markdown layer; keep the target layer and replace the other table with a link.
+- Check: secrets, credentials, and raw private transcripts are absent; redact them before writing memory docs.
+- Check: existing custom stats systems are preserved unless the user requests migration.
+- The bundled script reports duplicate marker IDs and invalid `since`/`last` dates, omits common sensitive filenames and secret-like content from inventories, and never writes in default read-only mode.
 
 ## Output Contract
 
@@ -93,7 +89,9 @@ Always produce a compact result block:
 
 - Read `references/workflow.md` for detailed layout rules.
 - Read `references/llm_tradeoffs.md` before redesigning automation boundaries.
-- Use `scripts/run_memory_steward.ps1 -Apply` from target root, or pass `-RepoRoot`.
+- Use `scripts/run_memory_steward.ps1 -RepoRoot <root>` for a read-only report on stdout.
+- Use `-ReportRoot <dir>` to persist a report, or `-Apply` to update the project memory scaffold and persist the report under `.agent/reports`.
+- Run `tests/run_tests.ps1` before releasing changes to the scanner.
 
 ## Boundaries
 
